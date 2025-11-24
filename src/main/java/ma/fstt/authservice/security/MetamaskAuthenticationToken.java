@@ -8,18 +8,22 @@ import java.util.Collection;
 /**
  * Token d'authentification custom pour MetaMask
  */
+
+
 public class MetamaskAuthenticationToken extends AbstractAuthenticationToken {
 
     private final String wallet;
     private final String signature;
+    private final String email;
 
     /**
      * Constructeur pour une authentification NON vérifiée
      */
-    public MetamaskAuthenticationToken(String wallet, String signature) {
+    public MetamaskAuthenticationToken(String wallet, String signature , String email) {
         super(null);
         this.wallet = wallet;
         this.signature = signature;
+        this.email = email;
         setAuthenticated(false);
     }
 
@@ -29,10 +33,12 @@ public class MetamaskAuthenticationToken extends AbstractAuthenticationToken {
     public MetamaskAuthenticationToken(
             String wallet,
             String signature,
+            String email,
             Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.wallet = wallet;
         this.signature = signature;
+        this.email = email;
         setAuthenticated(true);
     }
 
@@ -52,5 +58,9 @@ public class MetamaskAuthenticationToken extends AbstractAuthenticationToken {
     @Override
     public Object getPrincipal() {
         return wallet;
+    }
+
+    public String getEmail() {
+        return email;
     }
 }

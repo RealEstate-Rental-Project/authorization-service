@@ -36,6 +36,7 @@ public class MetamaskAuthenticationProvider implements AuthenticationProvider {
 
         String wallet = token.getWallet();
         String signature = token.getSignature();
+        String email = token.getEmail();
 
         // 1. Vérifier la signature cryptographique
         boolean isValid = signatureVerificationService.verifySignature(wallet, signature);
@@ -60,6 +61,7 @@ public class MetamaskAuthenticationProvider implements AuthenticationProvider {
         return new MetamaskAuthenticationToken(
                 wallet,
                 signature,
+                email,
                 authorities
         );
     }

@@ -14,12 +14,10 @@ spring:
       authorizationserver:
         issuer: http://localhost:9000
 
-# JWT Configuration
 jwt:
   private-key: classpath:keys/private-key.pem
   public-key: classpath:keys/public-key.pem
 
-# Eureka Configuration
 eureka:
   client:
     service-url:
@@ -28,29 +26,20 @@ eureka:
     fetch-registry: true
   instance:
     prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
 
-# OpenFeign Configuration
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 5000
-        readTimeout: 5000
-        loggerLevel: basic
-      user-service:
-        url: http://user-management-service
-
-# Logging Configuration
 logging:
   level:
-    root: INFO
     org.springframework.security: DEBUG
     org.springframework.security.oauth2: DEBUG
     ma.fstt.authserver: DEBUG
     feign: DEBUG
 
-# Management Endpoints
+cors:
+  allowed-origins:
+    - http://localhost:4200
+    - http://localhost:3000
+    - http://localhost:8082
+
 management:
   endpoints:
     web:
@@ -60,8 +49,7 @@ management:
     health:
       show-details: always
 
-# Custom MetaMask Settings
 app:
   metamask:
     nonce-expiration-minutes: 5
-    signature-message-prefix: "Sign this message to authenticate with your wallet: "
+    signature-message-prefix: "Sign this message to authenticate: "
