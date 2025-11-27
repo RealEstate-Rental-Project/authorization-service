@@ -34,11 +34,7 @@ logging:
     ma.fstt.authserver: DEBUG
     feign: DEBUG
 
-cors:
-  allowed-origins:
-    - http://localhost:4200
-    - http://localhost:3000
-    - http://localhost:8082
+
 
 management:
   endpoints:

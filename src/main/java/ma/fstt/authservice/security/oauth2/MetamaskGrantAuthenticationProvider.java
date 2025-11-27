@@ -3,6 +3,7 @@ package ma.fstt.authservice.security.oauth2;
 import ma.fstt.authservice.exception.InvalidSignatureException;
 import ma.fstt.authservice.exception.UserNotFoundException;
 import ma.fstt.authservice.model.UserDto;
+import ma.fstt.authservice.security.MetamaskUserPrincipal;
 import ma.fstt.authservice.service.SignatureVerificationService;
 import ma.fstt.authservice.service.UserServiceClient;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -73,13 +74,12 @@ public class MetamaskGrantAuthenticationProvider implements AuthenticationProvid
         String wallet = metamaskAuth.getWallet();
         String signature = metamaskAuth.getSignature();
 
-        // Vérifier la signature ECDSA
         boolean isValid = signatureVerificationService.verifySignature(wallet, signature);
         if (!isValid) {
             throw new InvalidSignatureException("Signature MetaMask invalide");
         }
 
-        // Récupérer l'utilisateur depuis UserManagementService
+        // 4. Récupérer l'utilisateur depuis UserManagementService
         UserDto user;
         try {
             user = userServiceClient.getUserByWallet(wallet);
@@ -87,28 +87,18 @@ public class MetamaskGrantAuthenticationProvider implements AuthenticationProvid
             throw new UserNotFoundException("Utilisateur non trouvé pour le wallet : " + wallet);
         }
 
-        // Créer les authorities (rôles)
-        var authorities = user.roles().stream()
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+        // 5. Créer le principal authentifié avec MetamaskUserPrincipal
+        MetamaskUserPrincipal principal = new MetamaskUserPrincipal(user);
 
-        // Créer le principal authentifié
-        Authentication principal = new UsernamePasswordAuthenticationToken(
-                wallet,
-                signature,
-                authorities
-        );
-
-        // 4. Déterminer les scopes autorisés
+        // 6. Déterminer les scopes autorisés
         Set<String> authorizedScopes = registeredClient.getScopes();
         if (!metamaskAuth.getScopes().isEmpty()) {
-            // Intersection entre les scopes demandés et ceux du client
             authorizedScopes = metamaskAuth.getScopes().stream()
                     .filter(registeredClient.getScopes()::contains)
                     .collect(Collectors.toSet());
         }
 
-        // 5. Créer le contexte de génération de tokens
+        // 7. Créer le contexte de génération de tokens
         DefaultOAuth2TokenContext.Builder tokenContextBuilder = DefaultOAuth2TokenContext.builder()
                 .registeredClient(registeredClient)
                 .principal(principal)
@@ -116,17 +106,16 @@ public class MetamaskGrantAuthenticationProvider implements AuthenticationProvid
                 .authorizationGrantType(MetamaskGrantAuthenticationToken.METAMASK_GRANT_TYPE)
                 .authorizedScopes(authorizedScopes);
 
-        // 6. Générer Access Token
+        // 8. Générer Access Token
         OAuth2AccessToken accessToken = generateAccessToken(tokenContextBuilder);
 
-        // 7. Générer Refresh Token (si le client le supporte)
+        // 9. Générer Refresh Token si supporté
         OAuth2RefreshToken refreshToken = null;
-        if (registeredClient.getAuthorizationGrantTypes()
-                .contains(AuthorizationGrantType.REFRESH_TOKEN)) {
+        if (registeredClient.getAuthorizationGrantTypes().contains(AuthorizationGrantType.REFRESH_TOKEN)) {
             refreshToken = generateRefreshToken(tokenContextBuilder);
         }
 
-        // 8. Créer et sauvegarder l'autorisation OAuth2
+        // 10. Créer et sauvegarder l'autorisation OAuth2
         OAuth2Authorization.Builder authorizationBuilder = OAuth2Authorization
                 .withRegisteredClient(registeredClient)
                 .principalName(wallet)
@@ -144,7 +133,7 @@ public class MetamaskGrantAuthenticationProvider implements AuthenticationProvid
         OAuth2Authorization authorization = authorizationBuilder.build();
         authorizationService.save(authorization);
 
-        // 9. Retourner le token d'accès OAuth2
+        // 11. Retourner le token d'accès OAuth2
         return new OAuth2AccessTokenAuthenticationToken(
                 registeredClient,
                 clientPrincipal,

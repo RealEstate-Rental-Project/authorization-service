@@ -61,11 +61,7 @@ public class SecurityConfig {
                 .httpBasic(Customizer.withDefaults())
 
                 // ✅ Désactiver CSRF (API REST avec tokens)
-                .csrf(csrf -> csrf.disable())
-
-                // ✅ CORS géré par CorsConfig
-                .cors(Customizer.withDefaults());
-
+                .csrf(csrf -> csrf.disable());
         return http.build();
     }
 

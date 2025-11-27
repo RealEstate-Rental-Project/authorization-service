@@ -9,6 +9,7 @@ public record UserDto(
         Long id,
         String wallet,
         String username,
+        String email,
         List<String> roles,
         boolean enabled
 ) {}

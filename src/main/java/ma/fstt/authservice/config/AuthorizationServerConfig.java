@@ -16,20 +16,17 @@ import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
-import org.springframework.web.cors.CorsConfigurationSource;
 
 
 import java.io.*;
@@ -48,15 +45,12 @@ public class AuthorizationServerConfig {
     private final SignatureVerificationService signatureVerificationService;
     private final UserServiceClient userServiceClient;
 
-    private final CorsConfigurationSource corsConfigurationSource;
-
     public AuthorizationServerConfig(
             SignatureVerificationService signatureVerificationService,
-            UserServiceClient userServiceClient,
-            CorsConfigurationSource corsConfigurationSource) {
+            UserServiceClient userServiceClient
+            ){
         this.signatureVerificationService = signatureVerificationService;
         this.userServiceClient = userServiceClient;
-        this.corsConfigurationSource = corsConfigurationSource;
     }
 
 
@@ -102,7 +96,9 @@ public class AuthorizationServerConfig {
                 .authorizeHttpRequests((authorize) ->
                         // Le token endpoint DOIT être accessible anonymement
                         // pour que le ClientAuthenticationFilter puisse traiter le client_id
-                        authorize.requestMatchers("/oauth2/token").permitAll()
+                        authorize
+                                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/oauth2/**").permitAll()
+                                .requestMatchers("/oauth2/token").permitAll()
 
                                 // Le reste (authorize, jwks, etc.) doit aussi être permis si nécessaire
                                 // Le Token Endpoint /oauth2/token doit impérativement être public
@@ -114,7 +110,6 @@ public class AuthorizationServerConfig {
                                 new MediaTypeRequestMatcher(MediaType.TEXT_HTML)
                         )
                 )
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         authorizationServerConfigurer.getEndpointsMatcher()
                 ));
@@ -209,14 +204,14 @@ public class AuthorizationServerConfig {
         JWKSet jwkSet = new JWKSet(rsaKey);
         return new ImmutableJWKSet<>(jwkSet);
     }
-
-    /**
-     * JWT Decoder pour valider les tokens en interne
-     */
-    @Bean
-    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
-        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
-    }
+//
+//    /**
+//     * JWT Decoder pour valider les tokens en interne
+//     */
+//    @Bean
+//    public JwtDecoder jwtDecoder(JWKSource<SecurityContext> jwkSource) {
+//        return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
+//    }
 
     /**
      * JWT Encoder utilisé par le TokenGenerator
@@ -242,30 +237,6 @@ public class AuthorizationServerConfig {
         return new DelegatingOAuth2TokenGenerator(jwtGenerator, refreshTokenGenerator);
     }
 
-    /**
-     * ✅ Customizer pour enrichir le JWT avec des claims personnalisés
-     */
-    @Bean
-    public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
-        return context -> {
-            if (context.getTokenType() == OAuth2TokenType.ACCESS_TOKEN) {
-                Authentication principal = context.getPrincipal();
-
-                // Ajouter le wallet comme claim
-                if (principal != null && principal.getName() != null) {
-                    context.getClaims().claim("wallet", principal.getName());
-                }
-
-                // Ajouter les rôles comme claim
-                if (principal != null && principal.getAuthorities() != null) {
-                    var roles = principal.getAuthorities().stream()
-                            .map(auth -> auth.getAuthority())
-                            .toList();
-                    context.getClaims().claim("roles", roles);
-                }
-            }
-        };
-    }
 
     /**
      * Service de stockage des autorisations OAuth2
