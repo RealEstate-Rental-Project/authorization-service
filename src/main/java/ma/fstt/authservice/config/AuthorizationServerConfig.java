@@ -15,18 +15,18 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
-import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.*;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 
 import java.io.*;
@@ -124,6 +124,18 @@ public class AuthorizationServerConfig {
      */
     @Bean
     public KeyPair keyPair() {
+
+        if (System.getenv("JWT_PRIVATE_KEY") != null && System.getenv("JWT_PUBLIC_KEY") != null) {
+            try {
+                return loadKeyPairFromEnv(
+                        System.getenv("JWT_PRIVATE_KEY"),
+                        System.getenv("JWT_PUBLIC_KEY")
+                );
+            } catch (Exception e) {
+                throw new IllegalStateException("Impossible de charger les clés depuis les variables d'environnement", e);
+            }
+        }
+
         File keyFile = new File("config/keys/keypair.ser");
 
         // Charger les clés existantes si disponibles
@@ -149,6 +161,21 @@ public class AuthorizationServerConfig {
             throw new IllegalStateException("Impossible de générer la paire RSA", ex);
         }
     }
+
+            /**
+             * recuperer les cles depuis les varibales d'env
+             *
+             * **/
+    private KeyPair loadKeyPairFromEnv(String privateKeyPem, String publicKeyPem) throws Exception {
+        byte[] privateBytes = PemUtils.parsePrivateKey(privateKeyPem);
+        byte[] publicBytes = PemUtils.parsePublicKey(publicKeyPem);
+
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = kf.generatePrivate(new PKCS8EncodedKeySpec(privateBytes));
+        PublicKey publicKey = kf.generatePublic(new X509EncodedKeySpec(publicBytes));
+        return new KeyPair(publicKey, privateKey);
+    }
+
 
     /**
      * Sauvegarde la paire de clés dans un fichier
@@ -196,9 +223,12 @@ public class AuthorizationServerConfig {
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
         RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
 
+        // KeyID fixe en prod, aléatoire en dev
+        String keyId = (System.getenv("JWT_PRIVATE_KEY") != null) ? "prod-key" : UUID.randomUUID().toString();
+
         RSAKey rsaKey = new RSAKey.Builder(publicKey)
                 .privateKey(privateKey)
-                .keyID(UUID.randomUUID().toString())
+                .keyID(keyId)
                 .build();
 
         JWKSet jwkSet = new JWKSet(rsaKey);
