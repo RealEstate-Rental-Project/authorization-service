@@ -17,9 +17,17 @@ public class MetamaskUserPrincipal implements Authentication {
 
     public MetamaskUserPrincipal(UserDto user) {
         this.user = user;
-        this.authorities = List.of(new SimpleGrantedAuthority(user.role()));
-    }
 
+
+        String role = user.role();
+        if (role == null || role.trim().isEmpty()) {
+            role = "ROLE_USER";
+        } else {
+            role = role.trim(); // retire les espaces inutiles
+        }
+        this.authorities = List.of(new SimpleGrantedAuthority(role));
+
+    }
     public UserDto getUser() {
         return user;
     }
